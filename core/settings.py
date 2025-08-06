@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
-    'auth_app',
+    'auth_app.apps.AuthAppConfig',
     'video_content_app',
     'django_rq',
 ]
@@ -171,3 +171,5 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
+
+DEFAULT_FROM_EMAIL = 'noreply@videoflix.com'
