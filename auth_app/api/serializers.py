@@ -54,3 +54,6 @@ class CookieTokenObtainPairSerializers(serializers.Serializer):  # defines login
             'user': {'id': user.id, 'username': user.username}  # user info for view response.
         }
         return data  # returns token data.
+    
+class PasswordResetSerializer(serializers.Serializer):  # defines password reset serializer.
+    email = serializers.EmailField(required=True)  # email field, required.

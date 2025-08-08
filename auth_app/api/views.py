@@ -1,16 +1,20 @@
-from django.utils.http import urlsafe_base64_decode  # imports base64 decode.
-from django.utils.encoding import force_str  # imports force_str.
-from django.contrib.auth.tokens import default_token_generator  # imports token generator.
+from django.conf import settings
+from django.core.mail import send_mail  # for email.
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode  # imports base64 decode.
+from django.utils.encoding import force_str, force_bytes  # imports force_str.
+from django.contrib.auth.tokens import default_token_generator, PasswordResetTokenGenerator  # imports token generator.
 from django.contrib.auth.models import User  # imports user.
 from rest_framework.views import APIView  # imports apiview.
 from rest_framework.response import Response  # imports response.
 from rest_framework import status  # imports status codes.
-from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers  # imports serializers.
+from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers, PasswordResetSerializer  # imports serializers.
 from rest_framework_simplejwt.views import TokenRefreshView  # imports token view.
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import UntypedToken, TokenError  # imports for token validation.
 from rest_framework_simplejwt.exceptions import InvalidToken  # imports invalid token error.
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken  # imports for blacklisting.
+import django_rq
+
 
 class RegistrationView(APIView):  # defines registration view.
     def post(self, request):  # handles post request.
@@ -113,3 +117,41 @@ class TokenRefreshViewCustom(TokenRefreshView):  # defines custom refresh view.
             samesite="Lax"
         )
         return response  # returns response.
+    
+def send_reset_email_task(instance):  # top-level task for RQ.
+    uid = urlsafe_base64_encode(force_bytes(instance.pk))  # encodes user id.
+    token = PasswordResetTokenGenerator().make_token(instance)  # generates reset token.
+    reset_link = f"http://your-frontend-ip/pages/auth/reset.html?uidb64={uid}&token={token}"  # frontend link (adapt if needed).
+    send_mail(
+        'Reset Your Password',  # subject.
+        f'Click here to reset your password: {reset_link}',  # body.
+        settings.DEFAULT_FROM_EMAIL,  # from email.
+        [instance.email],  # to email.
+    )
+
+class PasswordResetView(APIView):  # defines password reset view.
+    def post(self, request):  # handles post request.
+        serializer = PasswordResetSerializer(data=request.data)  # initializes serializer.
+        if serializer.is_valid():  # checks validity.
+            email = serializer.validated_data['email']  # gets email.
+            try:
+                user = User.objects.get(email=email)  # finds user if exists.
+            except User.DoesNotExist:
+                user = None  # no user, but still "send" email per doc.
+
+            # always "send" email, even if no user (queue task or simulate)
+            if user:
+                if getattr(settings, 'TESTING', False):  # sync in tests.
+                    send_reset_email_task(user)  # runs directly.
+                else:
+                    django_rq.enqueue(send_reset_email_task, user)  # queues with RQ.
+            else:
+                # for non-existent, simulate send (queue dummy or empty task, but since doc says "always send", send to the email anyway)
+                if getattr(settings, 'TESTING', False):
+                    send_mail('Reset Your Password', 'If an account exists, a reset link has been sent.', settings.DEFAULT_FROM_EMAIL, [email])
+                else:
+                    django_rq.enqueue(send_mail, 'Reset Your Password', 'If an account exists, a reset link has been sent.', settings.DEFAULT_FROM_EMAIL, [email])
+
+            return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)  # returns 200.
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid email.
