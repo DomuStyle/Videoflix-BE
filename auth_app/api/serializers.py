@@ -57,3 +57,12 @@ class CookieTokenObtainPairSerializers(serializers.Serializer):  # defines login
     
 class PasswordResetSerializer(serializers.Serializer):  # defines password reset serializer.
     email = serializers.EmailField(required=True)  # email field, required.
+
+class PasswordConfirmSerializer(serializers.Serializer):  # defines password confirm serializer.
+    new_password = serializers.CharField(write_only=True, required=True)  # new password field.
+    confirm_password = serializers.CharField(write_only=True, required=True)  # confirm password field.
+
+    def validate(self, attrs):  # validates input.
+        if attrs['new_password'] != attrs['confirm_password']:  # checks match.
+            raise serializers.ValidationError("Passwords do not match")  # raises error.
+        return attrs  # returns validated attrs.

@@ -7,7 +7,7 @@ from django.contrib.auth.models import User  # imports user.
 from rest_framework.views import APIView  # imports apiview.
 from rest_framework.response import Response  # imports response.
 from rest_framework import status  # imports status codes.
-from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers, PasswordResetSerializer  # imports serializers.
+from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers, PasswordResetSerializer, PasswordConfirmSerializer  # imports serializers.
 from rest_framework_simplejwt.views import TokenRefreshView  # imports token view.
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import UntypedToken, TokenError  # imports for token validation.
@@ -155,3 +155,21 @@ class PasswordResetView(APIView):  # defines password reset view.
             return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)  # returns 200.
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid email.
+    
+class PasswordConfirmView(APIView):  # defines password confirm view.
+    def post(self, request, uidb64, token):  # handles post request with params.
+        serializer = PasswordConfirmSerializer(data=request.data)  # initializes serializer.
+        if not serializer.is_valid():  # checks validity.
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for mismatch/invalid.
+
+        try:  # tries to decode uid.
+            uid = force_str(urlsafe_base64_decode(uidb64))  # decodes uidb64 to id.
+            user = User.objects.get(pk=uid)  # gets user by id.
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):  # catches invalid uid.
+            return Response({'detail': 'Invalid reset link'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+
+        if PasswordResetTokenGenerator().check_token(user, token):  # checks if token is valid.
+            user.set_password(serializer.validated_data['new_password'])  # sets new password.
+            user.save()  # saves user.
+            return Response({'detail': 'Your Password has been successfully reset.'}, status=status.HTTP_200_OK)  # returns 200.
+        return Response({'detail': 'Invalid reset link'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid token.
