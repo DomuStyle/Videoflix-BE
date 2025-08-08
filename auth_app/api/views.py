@@ -6,7 +6,8 @@ from rest_framework.views import APIView  # imports apiview.
 from rest_framework.response import Response  # imports response.
 from rest_framework import status  # imports status codes.
 from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers  # imports serializers.
-from rest_framework_simplejwt.views import TokenObtainPairView  # imports token view.
+from rest_framework_simplejwt.views import TokenRefreshView  # imports token view.
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import UntypedToken, TokenError  # imports for token validation.
 from rest_framework_simplejwt.exceptions import InvalidToken  # imports invalid token error.
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken  # imports for blacklisting.
@@ -83,4 +84,32 @@ class LogoutView(APIView):  # defines logout view.
         response = Response({'detail': 'Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid.'})  # success response.
         response.delete_cookie('access_token')  # deletes access token cookie.
         response.delete_cookie('refresh_token')  # deletes refresh token cookie.
+        return response  # returns response.
+    
+class TokenRefreshViewCustom(TokenRefreshView):  # defines custom refresh view.
+    def post(self, request):  # handles post request.
+        refresh_token = request.COOKIES.get('refresh_token')  # gets refresh token from cookie.
+        if not refresh_token:  # checks if missing.
+            return Response({"detail": "Refresh token missing."}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+
+        serializer = TokenRefreshSerializer(data={"refresh": refresh_token})  # initializes serializer with refresh.
+
+        try:
+            serializer.is_valid(raise_exception=True)  # validates token, raises on error.
+        except (InvalidToken, TokenError):  # catches invalid or malformed token.
+            return Response({"detail": "Invalid refresh token."}, status=status.HTTP_401_UNAUTHORIZED)  # returns 401.
+
+        access_token = serializer.validated_data['access']  # gets new access token.
+
+        response = Response({  # creates response.
+            "detail": "Token refreshed",  # detail message.
+            "access": access_token  # new access token.
+        })
+        response.set_cookie(  # sets new access token cookie.
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="Lax"
+        )
         return response  # returns response.
