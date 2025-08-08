@@ -173,3 +173,9 @@ SIMPLE_JWT = {
 }
 
 DEFAULT_FROM_EMAIL = 'noreply@videoflix.com'
+
+if DEBUG:  # if debug mode.
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # prints emails to console/logs.
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'  # real smtp for production.
+
