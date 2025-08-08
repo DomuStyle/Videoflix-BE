@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'auth_app.apps.AuthAppConfig',
     'video_content_app',
     'django_rq',
+    'rest_framework_simplejwt.token_blacklist',  # add for blacklisting refresh tokens.
 ]
 
 MIDDLEWARE = [
@@ -170,6 +171,8 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,  # set to True if you want to blacklist on rotation, but false per doc.
 }
 
 DEFAULT_FROM_EMAIL = 'noreply@videoflix.com'

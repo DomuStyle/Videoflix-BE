@@ -7,6 +7,9 @@ from rest_framework.response import Response  # imports response.
 from rest_framework import status  # imports status codes.
 from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers  # imports serializers.
 from rest_framework_simplejwt.views import TokenObtainPairView  # imports token view.
+from rest_framework_simplejwt.tokens import UntypedToken, TokenError  # imports for token validation.
+from rest_framework_simplejwt.exceptions import InvalidToken  # imports invalid token error.
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken  # imports for blacklisting.
 
 class RegistrationView(APIView):  # defines registration view.
     def post(self, request):  # handles post request.
@@ -33,11 +36,9 @@ class ActivationView(APIView):  # defines activation view.
             return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)  # returns success.
         return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid token.
 
-class CookieTokenObtainPairView(TokenObtainPairView):  # defines login view.
-    serializer_class = CookieTokenObtainPairSerializers  # sets serializer.
-
+class CookieTokenObtainPairView(APIView):  # defines login view.
     def post(self, request, *args, **kwargs):  # handles post request.
-        serializer = self.get_serializer(data=request.data)  # initializes serializer.
+        serializer = CookieTokenObtainPairSerializers(data=request.data)  # initializes serializer.
         serializer.is_valid(raise_exception=True)  # validates, raises 400 on error.
         
         response = Response({  # creates response.
@@ -61,4 +62,25 @@ class CookieTokenObtainPairView(TokenObtainPairView):  # defines login view.
             secure=True,
             samesite="Lax"
         )
+        return response  # returns response.
+
+class LogoutView(APIView):  # defines logout view.
+    def post(self, request):  # handles post request.
+        refresh_token = request.COOKIES.get('refresh_token')  # gets refresh token from cookie.
+        if refresh_token is None:  # checks if missing.
+            return Response({"detail": "Refresh token missing."}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+
+        try:
+            token = UntypedToken(refresh_token)  # validates token.
+        except (InvalidToken, TokenError):  # catches invalid token.
+            return Response({'detail': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+
+        # blacklist the refresh token
+        outstanding_token = OutstandingToken.objects.filter(user_id=token['user_id'], token=refresh_token).first()
+        if outstanding_token:
+            BlacklistedToken.objects.get_or_create(token=outstanding_token)  # blacklists it.
+
+        response = Response({'detail': 'Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid.'})  # success response.
+        response.delete_cookie('access_token')  # deletes access token cookie.
+        response.delete_cookie('refresh_token')  # deletes refresh token cookie.
         return response  # returns response.
