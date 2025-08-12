@@ -44,9 +44,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt',
     'corsheaders',
     'auth_app.apps.AuthAppConfig',
-    'video_content_app',
+    'video_content_app.apps.VideoContentAppConfig',  # add with custom config for signals.
     'django_rq',
     'rest_framework_simplejwt.token_blacklist',  # add for blacklisting refresh tokens.
 ]
