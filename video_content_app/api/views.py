@@ -37,3 +37,18 @@ class HLSPlaylistView(APIView):  # defines hls playlist view.
             raise Http404  # raises 404 if not.
 
         return FileResponse(open(playlist_path, 'rb'), content_type='application/vnd.apple.mpegurl')  # serves file.  
+    
+class HLSSegmentView(APIView):  # defines hls segment view.
+    permission_classes = [IsJWTAuthenticated]  # requires jwt authentication.
+
+    def get(self, request, movie_id, resolution, segment):  # handles get request with params.
+        try:
+            video = Video.objects.get(id=movie_id)  # gets video by id.
+        except Video.DoesNotExist:
+            raise Http404  # raises 404 if not found.
+
+        segment_path = os.path.join(settings.MEDIA_ROOT, f'videos/{video.id}/{resolution}/{segment}')  # builds path.
+        if not os.path.exists(segment_path):  # checks if file exists.
+            raise Http404  # raises 404 if not.
+
+        return FileResponse(open(segment_path, 'rb'), content_type='video/MP2T')  # serves binary file.
