@@ -16,6 +16,8 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.conf import settings  # imports settings.
+from django.conf.urls.static import static  # imports static for media.
 
 
 urlpatterns = [
@@ -23,3 +25,5 @@ urlpatterns = [
     path('api/', include('auth_app.api.urls')),  # includes auth urls.
     path('api/', include('video_content_app.api.urls')),  # includes video urls.
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -9,6 +9,7 @@ from django.core.cache import cache  # imports cache.
 from django.http import FileResponse, Http404  # imports file response and 404.
 import os
 
+
 class VideoListView(APIView):  # defines video list view.
     permission_classes = [IsJWTAuthenticated]  # requires jwt authentication.
 
@@ -36,7 +37,7 @@ class HLSPlaylistView(APIView):  # defines hls playlist view.
         if not os.path.exists(playlist_path):  # checks if file exists.
             raise Http404  # raises 404 if not.
 
-        return FileResponse(open(playlist_path, 'rb'), content_type='application/vnd.apple.mpegurl')  # serves file.  
+        return FileResponse(open(playlist_path, 'rb'), content_type='application/vnd.apple.mpegurl')  # serves file.
     
 class HLSSegmentView(APIView):  # defines hls segment view.
     permission_classes = [IsJWTAuthenticated]  # requires jwt authentication.

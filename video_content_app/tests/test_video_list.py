@@ -2,21 +2,24 @@ from rest_framework.test import APITestCase  # imports apitestcase for api testi
 from video_content_app.models import Video  # imports video model.
 from django.core.cache import cache  # imports cache for testing.
 from rest_framework_simplejwt.tokens import RefreshToken  # imports refresh token for auth.
-from django.contrib.auth.models import User  # imports user model.
-
+from django.contrib.auth.models import User  # imports user for jwt.
 
 class VideoListTestCase(APITestCase):  # defines test case class.
     def setUp(self):  # sets up test data.
         self.user = User.objects.create_user(username='test@example.com', password='testpass123')  # creates user for jwt.
         self.token = str(RefreshToken.for_user(self.user).access_token)  # generates access token.
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')  # sets jwt header for authenticated requests.
-        Video.objects.create(  # creates sample video.
+        self.video = Video.objects.create(  # creates sample video.
             title='Test Video',  # title.
             description='Test desc',  # description.
             thumbnail='thumbnails/test.jpg',  # thumbnail.
             category='Drama',  # category.
             original_file='videos/original/test.mp4'  # original file.
         )
+
+    def tearDown(self):  # cleans up after each test.
+        self.video.delete()  # deletes the created video to prevent leakage.
+        cache.clear()  # clears cache to reset for caching test.
 
     def test_video_list_authenticated(self):  # tests authenticated list.
         response = self.client.get('/api/video/')  # sends get request.

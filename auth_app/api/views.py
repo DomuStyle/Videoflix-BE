@@ -7,6 +7,7 @@ from django.contrib.auth.models import User  # imports user.
 from rest_framework.views import APIView  # imports apiview.
 from rest_framework.response import Response  # imports response.
 from rest_framework import status  # imports status codes.
+from rest_framework.permissions import AllowAny
 from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers, PasswordResetSerializer, PasswordConfirmSerializer  # imports serializers.
 from rest_framework_simplejwt.views import TokenRefreshView  # imports token view.
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
@@ -17,6 +18,8 @@ import django_rq
 
 
 class RegistrationView(APIView):  # defines registration view.
+    authentication_classes = []  # disables auth for public endpoint.
+    permission_classes = [AllowAny]  # allows anyone.
     def post(self, request):  # handles post request.
         serializer = RegistrationSerializer(data=request.data)  # initializes serializer.
         if serializer.is_valid():  # checks validity.
@@ -28,6 +31,8 @@ class RegistrationView(APIView):  # defines registration view.
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # error response.
 
 class ActivationView(APIView):  # defines activation view.
+    authentication_classes = []  # disables auth for public endpoint.
+    permission_classes = [AllowAny]  # allows anyone.
     def get(self, request, uidb64, token):  # handles get request.
         try:  # tries to decode uid.
             uid = force_str(urlsafe_base64_decode(uidb64))  # decodes uidb64 to id.
@@ -42,6 +47,9 @@ class ActivationView(APIView):  # defines activation view.
         return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid token.
 
 class CookieTokenObtainPairView(APIView):  # defines login view.
+    authentication_classes = []  # disables auth for public endpoint (fixes 401).
+    permission_classes = [AllowAny]  # allows unauthenticated access.
+
     def post(self, request, *args, **kwargs):  # handles post request.
         serializer = CookieTokenObtainPairSerializers(data=request.data)  # initializes serializer.
         serializer.is_valid(raise_exception=True)  # validates, raises 400 on error.
@@ -130,6 +138,8 @@ def send_reset_email_task(instance):  # top-level task for RQ.
     )
 
 class PasswordResetView(APIView):  # defines password reset view.
+    authentication_classes = []  # disables auth for public endpoint.
+    permission_classes = [AllowAny]  # allows anyone.
     def post(self, request):  # handles post request.
         serializer = PasswordResetSerializer(data=request.data)  # initializes serializer.
         if serializer.is_valid():  # checks validity.
@@ -157,6 +167,8 @@ class PasswordResetView(APIView):  # defines password reset view.
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid email.
     
 class PasswordConfirmView(APIView):  # defines password confirm view.
+    authentication_classes = []  # disables auth for public endpoint.
+    permission_classes = [AllowAny]  # allows anyone.
     def post(self, request, uidb64, token):  # handles post request with params.
         serializer = PasswordConfirmSerializer(data=request.data)  # initializes serializer.
         if not serializer.is_valid():  # checks validity.

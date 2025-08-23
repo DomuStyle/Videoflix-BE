@@ -1,3 +1,47 @@
+# services:
+
+#   db:
+#     image: postgres:latest
+#     container_name: videoflix_database
+#     environment:
+#       POSTGRES_DB: ${DB_NAME}
+#       POSTGRES_USER: ${DB_USER}
+#       POSTGRES_PASSWORD: ${DB_PASSWORD}
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+
+#   redis:
+#     image: redis:latest
+#     container_name: videoflix_redis
+#     volumes:
+#       - redis_data:/data
+
+#   web:
+#     build:
+#       context: .
+#       dockerfile: backend.Dockerfile
+#     env_file: .env
+#     container_name: videoflix_backend
+
+#     volumes:
+#       - .:/app
+#       - videoflix_media:/app/media
+#       - videoflix_static:/app/static
+#     ports:
+#       - "8000:8000"
+#     depends_on:
+#       - db
+#       - redis
+
+
+
+
+# volumes:
+#   postgres_data:
+#   redis_data:
+#   videoflix_media:
+#   videoflix_static:
+
 services:
 
   db:
@@ -9,12 +53,22 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:  # Added: Ensures db is ready before dependents start (prevents connection errors).
+      test: ["CMD", "pg_isready", "-U", "${DB_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:latest
     container_name: videoflix_redis
     volumes:
       - redis_data:/data
+    healthcheck:  # Added: Ensures redis is ready.
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build:
@@ -22,7 +76,6 @@ services:
       dockerfile: backend.Dockerfile
     env_file: .env
     container_name: videoflix_backend
-
     volumes:
       - .:/app
       - videoflix_media:/app/media
@@ -30,14 +83,30 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy  # Added: Waits for db healthcheck.
+      redis:
+        condition: service_healthy  # Added: Waits for redis healthcheck.
 
+  rqworker:  # Added: RQ worker service for background tasks (e.g., emails, transcoding).
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    env_file: .env
+    container_name: videoflix_rqworker
+    command: python manage.py rqworker default  # Runs worker for default queue.
+    volumes:
+      - .:/app
+      - videoflix_media:/app/media
+      - videoflix_static:/app/static
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
-
-
-volumes:
-  postgres_data:
-  redis_data:
-  videoflix_media:
-  videoflix_static:
+volumes:  # Added: Defines all named volumes for validation (required for named volumes in services).
+  postgres_data:  # Persists db data.
+  redis_data:  # Persists redis data.
+  videoflix_media:  # Persists media files (videos/thumbnails).
+  videoflix_static:  # Persists static files.

@@ -23,3 +23,9 @@ class LoginTestCase(APITestCase):  # defines test case class.
         data = {'email': 'test@example.com', 'password': 'wrong'}  # wrong password.
         response = self.client.post('/api/login/', data)  # sends post request.
         self.assertEqual(response.status_code, 400)  # checks 400 status.
+
+    def test_login_no_auth_required(self):  # tests that login doesn't require jwt.
+        self.client.credentials()  # ensures no jwt header (unauthenticated).
+        data = {'email': 'test@example.com', 'password': 'testpass123'}  # valid data.
+        response = self.client.post('/api/login/', data)  # sends post.
+        self.assertEqual(response.status_code, 200)  # checks 200, no 401.
