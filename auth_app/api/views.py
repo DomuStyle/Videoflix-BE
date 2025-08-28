@@ -30,21 +30,19 @@ class RegistrationView(APIView):  # defines registration view.
             }, status=status.HTTP_201_CREATED)  # 201 status.
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # error response.
 
-class ActivationView(APIView):  # defines activation view.
-    authentication_classes = []  # disables auth for public endpoint.
-    permission_classes = [AllowAny]  # allows anyone.
-    def get(self, request, uidb64, token):  # handles get request.
-        try:  # tries to decode uid.
-            uid = force_str(urlsafe_base64_decode(uidb64))  # decodes uidb64 to id.
-            user = User.objects.get(pk=uid)  # gets user by id.
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):  # catches invalid uid.
-            return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
-        
-        if default_token_generator.check_token(user, token):  # checks if token is valid.
-            user.is_active = True  # activates user.
-            user.save()  # saves user.
-            return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)  # returns success.
-        return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid token.
+class ActivationView(APIView):
+    def get(self, request, uidb64, token):
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # Changed to "message".
+
+        if default_token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)  # Changed to "message".
+        return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # Changed to "message".
 
 class CookieTokenObtainPairView(APIView):  # defines login view.
     authentication_classes = []  # disables auth for public endpoint (fixes 401).

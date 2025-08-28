@@ -7,11 +7,13 @@ from django.utils.http import urlsafe_base64_encode  # imports base64 encode.
 from django.utils.encoding import force_bytes  # imports force_bytes.
 from django.contrib.auth.tokens import default_token_generator  # imports token generator.
 import django_rq  # imports django_rq for queuing.
+import os
 
 def send_email_task(instance):  # defines task function as top-level (fix for RQ import).
     uid = urlsafe_base64_encode(force_bytes(instance.pk))  # encodes user id.
     token = default_token_generator.make_token(instance)  # generates token.
-    activation_link = f"http://your-frontend-ip/pages/auth/activate.html?uidb64={uid}&token={token}"  # frontend link.
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5500')  # loads from .env, default placeholder.
+    activation_link = f"{frontend_url}/pages/auth/activate.html?uid={uid}&token={token}"  # uses frontend url.
     send_mail(  # sends email.
         'Activate Your Account',  # subject.
         f'Click here: {activation_link}',  # body.

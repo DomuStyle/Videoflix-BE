@@ -73,13 +73,14 @@ Or by creating a new file with the following content. The default values are gen
     Django
     DEBUG=False
     ALLOWED_HOSTS=localhost,127.0.0.1
+    FRONTEND_URL=http://localhost:5500
 
     PostgreSQL Database
     DB_NAME=videoflix_db
     DB_USER=videoflix_user
     DB_PASSWORD=supersecretpassword
 
-    Django Superuser (will be created automatically on      startup)
+    Django Superuser (will be created automatically on startup)
     DJANGO_SUPERUSER_USERNAME=admin
     DJANGO_SUPERUSER_EMAIL=admin@example.com
     DJANGO_SUPERUSER_PASSWORD=adminpassword
