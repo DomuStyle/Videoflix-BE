@@ -85,6 +85,14 @@ Or by creating a new file with the following content. The default values are gen
     DJANGO_SUPERUSER_EMAIL=admin@example.com
     DJANGO_SUPERUSER_PASSWORD=adminpassword
 
+    EMAIL_HOST=smtp.example.com
+    EMAIL_PORT=587
+    EMAIL_HOST_USER=your_email_user
+    EMAIL_HOST_PASSWORD=your_email_user_password
+    EMAIL_USE_TLS=True
+    EMAIL_USE_SSL=False
+    DEFAULT_FROM_EMAIL=default_from_email
+
 
 ## Step 5 *Build and Start Docker Containers:*
 This command builds the images, starts all services (web API, database, Redis, RQ worker), and runs the database migrations.

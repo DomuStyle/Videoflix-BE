@@ -14,7 +14,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import UntypedToken, TokenError  # imports for token validation.
 from rest_framework_simplejwt.exceptions import InvalidToken  # imports invalid token error.
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken  # imports for blacklisting.
-import django_rq
+import django_rq, os
 
 
 class RegistrationView(APIView):  # defines registration view.
@@ -126,18 +126,17 @@ class TokenRefreshViewCustom(TokenRefreshView):  # defines custom refresh view.
     
 def send_reset_email_task(instance):  # top-level task for RQ.
     uid = urlsafe_base64_encode(force_bytes(instance.pk))  # encodes user id.
-    token = PasswordResetTokenGenerator().make_token(instance)  # generates reset token.
-    reset_link = f"http://your-frontend-ip/pages/auth/reset.html?uidb64={uid}&token={token}"  # frontend link (adapt if needed).
+    token = PasswordResetTokenGenerator().make_token(instance)  # generates token.
+    frontend_url = os.getenv('FRONTEND_URL', 'http://your-frontend-ip')  # loads from .env, default placeholder.
+    reset_link = f"{frontend_url}/pages/auth/confirm_password.html?uid={uid}&token={token}"  # uses frontend url.
     send_mail(
         'Reset Your Password',  # subject.
         f'Click here to reset your password: {reset_link}',  # body.
         settings.DEFAULT_FROM_EMAIL,  # from email.
         [instance.email],  # to email.
     )
-
+    
 class PasswordResetView(APIView):  # defines password reset view.
-    authentication_classes = []  # disables auth for public endpoint.
-    permission_classes = [AllowAny]  # allows anyone.
     def post(self, request):  # handles post request.
         serializer = PasswordResetSerializer(data=request.data)  # initializes serializer.
         if serializer.is_valid():  # checks validity.
@@ -163,7 +162,7 @@ class PasswordResetView(APIView):  # defines password reset view.
             return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)  # returns 200.
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid email.
-    
+
 class PasswordConfirmView(APIView):  # defines password confirm view.
     authentication_classes = []  # disables auth for public endpoint.
     permission_classes = [AllowAny]  # allows anyone.
