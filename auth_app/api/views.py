@@ -63,14 +63,14 @@ class CookieTokenObtainPairView(APIView):  # defines login view.
             key="access_token",
             value=str(access),
             httponly=True,
-            secure=True,
+            secure=False if settings.DEBUG else True,  # False in dev (http), True in prod (https).
             samesite="Lax"
         )
         response.set_cookie(  # sets refresh token cookie.
             key="refresh_token",
             value=str(refresh),
             httponly=True,
-            secure=True,
+            secure=False if settings.DEBUG else True,
             samesite="Lax"
         )
         return response  # returns response.

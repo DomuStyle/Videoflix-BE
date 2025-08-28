@@ -39,3 +39,8 @@ class VideoListTestCase(APITestCase):  # defines test case class.
         cached_data = cache.get(cache_key)  # gets from cache.
         self.assertIsNotNone(cached_data)  # checks cache set.
         self.assertEqual(len(cached_data), 1)  # checks cached data length.
+
+    def test_video_list_cookie_auth(self):  # tests cookie jwt.
+        self.client.cookies['access_token'] = self.token  # sets cookie instead of header.
+        response = self.client.get('/api/video/')
+        self.assertEqual(response.status_code, 200)  # checks 200 with cookie.

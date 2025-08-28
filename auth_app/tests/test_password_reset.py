@@ -24,7 +24,7 @@ class PasswordResetTestCase(APITestCase):  # defines test case class.
         self.assertEqual(response.data['detail'], 'An email has been sent to reset your password.')  # checks response detail.
         self.assertEqual(len(mail.outbox), 1)  # checks one email sent.
         self.assertIn('reset', mail.outbox[0].subject.lower())  # checks email subject contains 'reset'.
-        self.assertIn('http://your-frontend-ip/pages/auth/reset.html', mail.outbox[0].body)  # checks reset link in body (adapt if frontend URL changes).
+        self.assertIn('http://localhost:5500/pages/auth/confirm_password.html', mail.outbox[0].body)  # checks reset link in body (adapt if frontend URL changes).
 
     def test_password_reset_success_non_existing_email(self):  # tests success for non-existent email.
         data = {'email': 'nonexistent@example.com'}  # request data.
