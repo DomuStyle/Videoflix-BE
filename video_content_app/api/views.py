@@ -8,7 +8,7 @@ from .permissions import IsJWTAuthenticated  # imports permission.
 from django.core.cache import cache  # imports cache.
 from django.http import FileResponse, Http404  # imports file response and 404.
 import os
-
+import mimetypes  # Add for content-type detection
 
 class VideoListView(APIView):  # defines video list view.
     permission_classes = [IsJWTAuthenticated]  # requires jwt authentication.
@@ -53,3 +53,16 @@ class HLSSegmentView(APIView):  # defines hls segment view.
             raise Http404  # raises 404 if not.
 
         return FileResponse(open(segment_path, 'rb'), content_type='video/MP2T')  # serves binary file.
+    
+class MediaView(APIView):  # New view for serving media files (e.g., thumbnails)
+    def get(self, request, path):  # path captures the relative path like thumbnails/filename.png
+        # Build full file path
+        file_path = os.path.join(settings.MEDIA_ROOT, path)
+        # Check if file exists and is within MEDIA_ROOT to prevent path traversal
+        if not os.path.exists(file_path) or not file_path.startswith(str(settings.MEDIA_ROOT)):
+            raise Http404("Media file not found")
+        # Get content type (e.g., image/png)
+        content_type, _ = mimetypes.guess_type(file_path)
+        content_type = content_type or 'application/octet-stream'
+        # Serve file
+        return FileResponse(open(file_path, 'rb'), content_type=content_type)

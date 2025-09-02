@@ -11,5 +11,8 @@ class VideoSerializer(serializers.ModelSerializer):  # defines video serializer.
     def get_thumbnail_url(self, obj):  # gets thumbnail url.
         request = self.context.get('request')  # gets request from context.
         if obj.thumbnail:  # if thumbnail exists.
-            return request.build_absolute_uri(obj.thumbnail.url)  # builds full url.
+            # Get the relative path after MEDIA_URL (e.g., thumbnails/filename.png)
+            relative_path = str(obj.thumbnail).lstrip('/')  # Remove any leading / from the path
+            # Build URL with /api/media/ prefix to match custom MediaView route
+            return request.build_absolute_uri(f'/api/media/{relative_path}')
         return None  # returns none if no thumbnail.
