@@ -71,9 +71,8 @@ Create a .env file in the project's root directory by copying env.example from t
 Or by creating a new file with the following content. The default values are generally fine for local development.
 
     Django
-    DEBUG=False
+    DEBUG=True
     ALLOWED_HOSTS=localhost,127.0.0.1
-    FRONTEND_URL=http://localhost:5500
 
     PostgreSQL Database
     DB_NAME=videoflix_db

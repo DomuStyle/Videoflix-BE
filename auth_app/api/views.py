@@ -14,7 +14,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import UntypedToken, TokenError  # imports for token validation.
 from rest_framework_simplejwt.exceptions import InvalidToken  # imports invalid token error.
 from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken  # imports for blacklisting.
-import django_rq, os
+import django_rq
 
 
 class RegistrationView(APIView):  # defines registration view.
@@ -127,7 +127,7 @@ class TokenRefreshViewCustom(TokenRefreshView):  # defines custom refresh view.
 def send_reset_email_task(instance):  # top-level task for RQ.
     uid = urlsafe_base64_encode(force_bytes(instance.pk))  # encodes user id.
     token = PasswordResetTokenGenerator().make_token(instance)  # generates token.
-    frontend_url = os.getenv('FRONTEND_URL', 'http://your-frontend-ip')  # loads from .env, default placeholder.
+    frontend_url = 'http://localhost:5500'
     reset_link = f"{frontend_url}/pages/auth/confirm_password.html?uid={uid}&token={token}"  # uses frontend url.
     send_mail(
         'Reset Your Password',  # subject.
