@@ -66,6 +66,19 @@ MIDDLEWARE = [
 
 CORS_ALLOW_CREDENTIALS = True
 
+CORS_ALLOW_ALL_ORIGINS = False  # Only allow specific origins for security
+CORS_ALLOWED_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+]
+
 CSRF_TRUSTED_ORIGINS = [
 
   'http://127.0.0.1:5500',
@@ -192,15 +205,30 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'auth_app.api.authentication.CookieJWTAuthentication',        
+        'auth_app.api.authentication.CookieJWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',  # ADDITION: Fallback to session auth (browser sessions) for dev if JWT fails.        
     ]
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=5),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": False,  # set to True if you want to blacklist on rotation, but false per doc.
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": False,
+
+    'AUTH_COOKIE': 'access_token',
+    'AUTH_COOKIE_DOMAIN': None,
+    'AUTH_COOKIE_SECURE': not DEBUG,
+    'AUTH_COOKIE_HTTP_ONLY': True,
+    'AUTH_COOKIE_PATH': '/',
+    'AUTH_COOKIE_SAMESITE': 'None',  # Change: 'None' to allow cookies in cross-origin fetch requests (Lax restricts some dev cases).
+
+    'AUTH_REFRESH_COOKIE': 'refresh_token',
+    'AUTH_REFRESH_COOKIE_DOMAIN': None,
+    'AUTH_REFRESH_COOKIE_SECURE': not DEBUG,
+    'AUTH_REFRESH_COOKIE_HTTP_ONLY': True,
+    'AUTH_REFRESH_COOKIE_PATH': '/',
+    'AUTH_REFRESH_COOKIE_SAMESITE': 'None',  # Change: 'None' for refresh cookie.
 }
 
 DEFAULT_FROM_EMAIL = 'noreply@videoflix.com'

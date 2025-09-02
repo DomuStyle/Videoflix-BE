@@ -59,19 +59,19 @@ class CookieTokenObtainPairView(APIView):  # defines login view.
         refresh = serializer.validated_data["refresh"]  # gets refresh token.
         access = serializer.validated_data["access"]  # gets access token.
 
-        response.set_cookie(  # sets access token cookie.
+        response.set_cookie(
             key="access_token",
-            value=str(access),
-            httponly=True,
-            secure=False if settings.DEBUG else True,  # False in dev (http), True in prod (https).
-            samesite="Lax"
-        )
-        response.set_cookie(  # sets refresh token cookie.
-            key="refresh_token",
-            value=str(refresh),
+            value=serializer.validated_data['access'],
             httponly=True,
             secure=False if settings.DEBUG else True,
-            samesite="Lax"
+            samesite="None"  # Change: 'None' (was "Lax").
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=serializer.validated_data['refresh'],
+            httponly=True,
+            secure=False if settings.DEBUG else True,
+            samesite="None"  # Change: 'None' (was "Lax").
         )
         return response  # returns response.
 
@@ -95,8 +95,9 @@ class LogoutView(APIView):  # defines logout view.
         response.delete_cookie('access_token')  # deletes access token cookie.
         response.delete_cookie('refresh_token')  # deletes refresh token cookie.
         return response  # returns response.
-    
+
 class TokenRefreshViewCustom(TokenRefreshView):  # defines custom refresh view.
+    
     def post(self, request):  # handles post request.
         refresh_token = request.COOKIES.get('refresh_token')  # gets refresh token from cookie.
         if not refresh_token:  # checks if missing.
@@ -119,11 +120,11 @@ class TokenRefreshViewCustom(TokenRefreshView):  # defines custom refresh view.
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=True,
-            samesite="Lax"
+            secure=False if settings.DEBUG else True,  # CHANGE: Conditional secure flag (False in dev/HTTP to allow cookie setting; was hardcoded True, causing issues in dev).
+            samesite="None"  # Remains the same (allows cross-site POST for refresh).
         )
         return response  # returns response.
-    
+        
 def send_reset_email_task(instance):  # top-level task for RQ.
     uid = urlsafe_base64_encode(force_bytes(instance.pk))  # encodes user id.
     token = PasswordResetTokenGenerator().make_token(instance)  # generates token.
