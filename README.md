@@ -71,7 +71,7 @@ Create a .env file in the project's root directory by copying env.example from t
 Or by creating a new file with the following content. The default values are generally fine for local development.
 
     Django
-    DEBUG=True
+    DEBUG=False
     ALLOWED_HOSTS=localhost,127.0.0.1
 
     PostgreSQL Database
@@ -92,6 +92,8 @@ Or by creating a new file with the following content. The default values are gen
     EMAIL_USE_SSL=False
     DEFAULT_FROM_EMAIL=default_from_email
 
+- Note: If DEBUG = True emails will only be sent in terminal and Endpoints can only be tested in Postman. Setup EMAIL-Details and DEBUG = False to receive emails with activation links. 
+- Tipp: Visit https://temp-mail.org/en/ to create, easy to use Temporary EMail's.
 
 ## Step 5 *Build and Start Docker Containers:*
 This command builds the images, starts all services (web API, database, Redis, RQ worker), and runs the database migrations.
