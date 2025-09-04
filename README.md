@@ -96,7 +96,7 @@ Or by creating a new file with the following content. The default values are gen
 - Tipp: Visit https://temp-mail.org/en/ to create, easy to use Temporary EMail's.
 
 ## Step 5 *Build and Start Docker Containers:*
-This command builds the images, starts all services (web API, database, Redis, RQ worker), and runs the database migrations.
+This commands builds the images, starts all services (web API, database, Redis, RQ worker), and runs the database migrations.
 
 for Mac user
 
@@ -104,14 +104,20 @@ for Mac user
 
 for all systems
 
-    docker-compose up --build
+    docker-compose build
+
+after that run the command
+
+    docker-compose up -d
 
 - Note: You can add -d to run the containers in the background.
 
 
 ## Step 6 *The Project is now ready to go!*
 
-You can access the application now at http://127.0.0.1:8000.
+You can access the application now in your Browser at http://127.0.0.1:8000.
 For example by using Postman.
+
+Use http://127.0.0.1:8000/admin/ to enter the admin panel of the Backend by using the Superuser credentials set in your .env file.
 
 ---

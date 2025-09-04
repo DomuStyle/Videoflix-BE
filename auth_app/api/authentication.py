@@ -1,33 +1,53 @@
-from rest_framework_simplejwt.authentication import JWTAuthentication  # imports base jwt auth.
-from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed  # imports exceptions.
-from django.utils.translation import gettext_lazy as _  # for translations.
+"""Custom JWT authentication for handling token-based authentication via cookies.
+
+This module extends the Django REST Framework Simple JWT authentication to support
+token extraction from cookies, with added logging for debugging and monitoring.
+"""
+
+import logging
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
+from django.utils.translation import gettext_lazy as _
+
+logger = logging.getLogger(__name__)
 
 
-import logging  # ADDITION: Import for logging.
+class CookieJWTAuthentication(JWTAuthentication):
+    """Custom JWT authentication class to extract tokens from cookies or headers."""
+    
+    def authenticate(self, request):
+        """Authenticate a user by validating a JWT token from headers or cookies.
 
-logger = logging.getLogger(__name__)  # ADDITION: Logger instance.
+        Args:
+            request: The HTTP request object containing headers or cookies.
 
-class CookieJWTAuthentication(JWTAuthentication):  # Unchanged.
-    def authenticate(self, request):  # Unchanged structure.
-        header = self.get_header(request)  # Unchanged.
+        Returns:
+            tuple: A tuple of (user, validated_token) if authentication succeeds,
+                   or None if no valid token is found or validation fails.
+        """
+        header = self.get_header(request)
 
-        if header is None:  # Unchanged.
-            raw_token = request.COOKIES.get('access_token')  # Unchanged.
-            if raw_token is None:  # Unchanged.
-                logger.warning("No access_token cookie found in request")  # ADDITION: Log if no cookie (helps debug if not sent).
-                return None  # Unchanged.
+        if header is None:
+            # Check for access token in cookies if no Authorization header
+            raw_token = request.COOKIES.get('access_token')
+            if raw_token is None:
+                logger.warning("No access token found in cookies")
+                return None
         else:
-            raw_token = self.get_raw_token(header)  # Unchanged.
+            # Extract raw token from Authorization header
+            raw_token = self.get_raw_token(header)
 
-        if raw_token is None:  # Unchanged.
-            logger.warning("No raw token found in header or cookie")  # ADDITION: Log if no token at all.
-            return None  # Unchanged.
+        if raw_token is None:
+            logger.warning("No token found in header or cookies")
+            return None
 
-        try:  # ADDITION: Wrap validation in try-except for logging errors.
-            validated_token = self.get_validated_token(raw_token)  # Unchanged.
-            user, token = self.get_user(validated_token), validated_token  # Slight change: Get user here.
-            logger.info(f"Token validated for user: {user.username if user else 'None'}")  # ADDITION: Log successful validation.
-            return user, token  # Unchanged.
-        except (InvalidToken, AuthenticationFailed) as e:  # ADDITION: Catch and log exceptions (e.g., expired/invalid token).
-            logger.error(f"Token validation failed: {str(e)}")  # Log error.
-            return None  # Return None on failure.
+        try:
+            # Validate token and retrieve associated user
+            validated_token = self.get_validated_token(raw_token)
+            user = self.get_user(validated_token)
+            logger.info(f"Successfully authenticated user: {user.username}")
+            return user, validated_token
+        except (InvalidToken, AuthenticationFailed) as e:
+            # Log token validation errors (e.g., expired or invalid token)
+            logger.error(f"Token validation failed: {str(e)}")
+            return None
