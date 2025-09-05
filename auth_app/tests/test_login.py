@@ -1,31 +1,43 @@
+"""Unit tests for the login API endpoint.
 
-from rest_framework.test import APITestCase  # imports apitestcase.
-from django.contrib.auth.models import User  # imports user model.
+This module contains test cases to verify the behavior of the login view,
+including successful login, invalid credentials, and unauthenticated access.
+"""
 
-class LoginTestCase(APITestCase):  # defines test case class.
-    def setUp(self):  # sets up test data.
-        self.user = User.objects.create_user(  # creates active user.
-            username='test@example.com',  # username matches email (fix for authentication).
-            email='test@example.com',  # email.
-            password='testpass123',  # password.
-            is_active=True  # active for login.
+from django.contrib.auth.models import User
+from rest_framework.test import APITestCase
+
+
+class LoginTestCase(APITestCase):
+    """Test case for the login endpoint."""
+    
+    def setUp(self):
+        """Set up test data with an active user for login."""
+        self.user = User.objects.create_user(
+            username='test@example.com',
+            email='test@example.com',
+            password='testpass123',
+            is_active=True
         )
 
-    def test_login_success(self):  # tests successful login.
-        data = {'email': 'test@example.com', 'password': 'testpass123'}  # login data.
-        response = self.client.post('/api/login/', data)  # sends post request.
-        self.assertEqual(response.status_code, 200)  # checks 200 status.
-        self.assertEqual(response.data['detail'], 'Login successful')  # checks detail message.
-        self.assertIn('access_token', response.cookies)  # checks access token cookie.
-        self.assertIn('refresh_token', response.cookies)  # checks refresh token cookie.
+    def test_login_success(self):
+        """Test successful login with valid credentials."""
+        data = {'email': 'test@example.com', 'password': 'testpass123'}
+        response = self.client.post('/api/login/', data)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['detail'], 'Login successful')
+        self.assertIn('access_token', response.cookies)  # Verify access token cookie is set
+        self.assertIn('refresh_token', response.cookies)  # Verify refresh token cookie is set
 
-    def test_login_invalid_credentials(self):  # tests invalid credentials.
-        data = {'email': 'test@example.com', 'password': 'wrong'}  # wrong password.
-        response = self.client.post('/api/login/', data)  # sends post request.
-        self.assertEqual(response.status_code, 400)  # checks 400 status.
+    def test_login_invalid_credentials(self):
+        """Test login failure with incorrect password."""
+        data = {'email': 'test@example.com', 'password': 'wrong'}
+        response = self.client.post('/api/login/', data)
+        self.assertEqual(response.status_code, 400)
 
-    def test_login_no_auth_required(self):  # tests that login doesn't require jwt.
-        self.client.credentials()  # ensures no jwt header (unauthenticated).
-        data = {'email': 'test@example.com', 'password': 'testpass123'}  # valid data.
-        response = self.client.post('/api/login/', data)  # sends post.
-        self.assertEqual(response.status_code, 200)  # checks 200, no 401.
+    def test_login_no_auth_required(self):
+        """Test login endpoint allows unauthenticated requests."""
+        self.client.credentials()  # Clear any authentication headers
+        data = {'email': 'test@example.com', 'password': 'testpass123'}
+        response = self.client.post('/api/login/', data)
+        self.assertEqual(response.status_code, 200)  # Verify no 401 error
