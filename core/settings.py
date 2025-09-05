@@ -233,16 +233,13 @@ SIMPLE_JWT = {
 
 DEFAULT_FROM_EMAIL = 'noreply@videoflix.com'
 
-if DEBUG:  # if debug mode.
-    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'  # prints emails to console/logs.
-else:
-    # Im Produktivmodus (DEBUG=False) den SMTP-Server verwenden
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-    EMAIL_HOST = os.getenv('EMAIL_HOST')
-    EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
-    EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL') == 'True'
-    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+# Always use SMTP for real email sending in dev and prod. For pure testing, temporarily switch to console backend.
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = os.getenv('EMAIL_HOST')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS') == 'True'
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 

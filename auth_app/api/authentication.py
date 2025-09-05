@@ -5,9 +5,9 @@ token extraction from cookies, with added logging for debugging and monitoring.
 """
 
 import logging
+from django.utils.translation import gettext_lazy as _
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, AuthenticationFailed
-from django.utils.translation import gettext_lazy as _
 
 logger = logging.getLogger(__name__)
 

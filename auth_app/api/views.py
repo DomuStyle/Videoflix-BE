@@ -1,185 +1,275 @@
+"""API views for user authentication and password management.
+
+This module defines views for user registration, account activation, login, logout,
+token refresh, and password reset functionality, integrating with Django REST
+Framework and Simple JWT for token-based authentication.
+"""
+
 from django.conf import settings
-from django.core.mail import send_mail  # for email.
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode  # imports base64 decode.
-from django.utils.encoding import force_str, force_bytes  # imports force_str.
-from django.contrib.auth.tokens import default_token_generator, PasswordResetTokenGenerator  # imports token generator.
-from django.contrib.auth.models import User  # imports user.
-from rest_framework.views import APIView  # imports apiview.
-from rest_framework.response import Response  # imports response.
-from rest_framework import status  # imports status codes.
+from django.core.mail import send_mail 
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode 
+from django.utils.encoding import force_str, force_bytes 
+from django.contrib.auth.tokens import default_token_generator, PasswordResetTokenGenerator
+from django.contrib.auth.models import User  
+from rest_framework.views import APIView  
+from rest_framework.response import Response  
+from rest_framework import status  
 from rest_framework.permissions import AllowAny
-from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers, PasswordResetSerializer, PasswordConfirmSerializer  # imports serializers.
-from rest_framework_simplejwt.views import TokenRefreshView  # imports token view.
+from rest_framework_simplejwt.views import TokenRefreshView 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
-from rest_framework_simplejwt.tokens import UntypedToken, TokenError  # imports for token validation.
-from rest_framework_simplejwt.exceptions import InvalidToken  # imports invalid token error.
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken  # imports for blacklisting.
+from rest_framework_simplejwt.tokens import UntypedToken, TokenError  
+from rest_framework_simplejwt.exceptions import InvalidToken  
+from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken 
+from .serializers import RegistrationSerializer, CookieTokenObtainPairSerializers, PasswordResetSerializer, PasswordConfirmSerializer  
 import django_rq
 
 
-class RegistrationView(APIView):  # defines registration view.
-    authentication_classes = []  # disables auth for public endpoint.
-    permission_classes = [AllowAny]  # allows anyone.
-    def post(self, request):  # handles post request.
-        serializer = RegistrationSerializer(data=request.data)  # initializes serializer.
-        if serializer.is_valid():  # checks validity.
-            user = serializer.save()  # saves user.
-            return Response({  # returns success response.
-                'user': {'id': user.id, 'email': user.email},  # user info.
-                'token': 'activation_token'  # placeholder, actual token in email.
-            }, status=status.HTTP_201_CREATED)  # 201 status.
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # error response.
+class RegistrationView(APIView):
+    """Handle user registration via email and password."""
+    authentication_classes = []  
+    permission_classes = [AllowAny] 
+
+    def post(self, request): 
+        """Process registration requests and create inactive users.
+
+        Args:
+            request: The HTTP request object containing user data.
+
+        Returns:
+            Response: Success response with user info or error details.
+        """
+        serializer = RegistrationSerializer(data=request.data) 
+        if serializer.is_valid():  
+            user = serializer.save()  
+            return Response({  
+                'user': {'id': user.id, 'email': user.email}, 
+                'token': 'activation_token'  # Placeholder for activation token sent via email
+            }, status=status.HTTP_201_CREATED)  
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ActivationView(APIView):
+    """Handle account activation via emailed token."""
+
     def get(self, request, uidb64, token):
+        """Activate a user account using a base64-encoded UID and token.
+
+        Args:
+            request: The HTTP request object.
+            uidb64 (str): Base64-encoded user ID.
+            token (str): Activation token.
+
+        Returns:
+            Response: Success or error message based on activation result.
+        """
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = User.objects.get(pk=uid)
         except (TypeError, ValueError, OverflowError, User.DoesNotExist):
-            return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # Changed to "message".
+            return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)
 
         if default_token_generator.check_token(user, token):
             user.is_active = True
             user.save()
-            return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)  # Changed to "message".
-        return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST)  # Changed to "message".
+            return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)  
+        return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST) 
 
-class CookieTokenObtainPairView(APIView):  # defines login view.
-    authentication_classes = []  # disables auth for public endpoint (fixes 401).
-    permission_classes = [AllowAny]  # allows unauthenticated access.
+class CookieTokenObtainPairView(APIView):
+    """Handle user login with cookie-based JWT tokens."""
+    authentication_classes = [] 
+    permission_classes = [AllowAny]
 
-    def post(self, request, *args, **kwargs):  # handles post request.
-        serializer = CookieTokenObtainPairSerializers(data=request.data)  # initializes serializer.
-        serializer.is_valid(raise_exception=True)  # validates, raises 400 on error.
+    def post(self, request, *args, **kwargs):
+        """Process login requests and set JWT tokens in cookies.
+
+        Args:
+            request: The HTTP request object containing email and password.
+            *args: Variable positional arguments.
+            **kwargs: Variable keyword arguments.
+
+        Returns:
+            Response: Success response with user info and tokens set in cookies.
+        """
+        serializer = CookieTokenObtainPairSerializers(data=request.data)  
+        serializer.is_valid(raise_exception=True) 
         
-        response = Response({  # creates response.
-            "detail": "Login successful",  # matches test expectation.
-            "user": serializer.validated_data['user']  # uses user info from serializer.
+        response = Response({  
+            "detail": "Login successful",  
+            "user": serializer.validated_data['user'] 
         })
-        refresh = serializer.validated_data["refresh"]  # gets refresh token.
-        access = serializer.validated_data["access"]  # gets access token.
+        # Set access and refresh tokens in HTTP-only cookies
+        refresh = serializer.validated_data["refresh"]  
+        access = serializer.validated_data["access"]  
 
         response.set_cookie(
             key="access_token",
             value=serializer.validated_data['access'],
             httponly=True,
             secure=False if settings.DEBUG else True,
-            samesite="None"  # Change: 'None' (was "Lax").
+            samesite="None" 
         )
         response.set_cookie(
             key="refresh_token",
             value=serializer.validated_data['refresh'],
             httponly=True,
             secure=False if settings.DEBUG else True,
-            samesite="None"  # Change: 'None' (was "Lax").
+            samesite="None" 
         )
-        return response  # returns response.
+        return response
 
-class LogoutView(APIView):  # defines logout view.
-    def post(self, request):  # handles post request.
-        refresh_token = request.COOKIES.get('refresh_token')  # gets refresh token from cookie.
-        if refresh_token is None:  # checks if missing.
-            return Response({"detail": "Refresh token missing."}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+class LogoutView(APIView):
+    """Handle user logout by blacklisting refresh tokens."""
+
+    def post(self, request):
+        """Process logout requests and clear token cookies.
+
+        Args:
+            request: The HTTP request object containing the refresh token cookie.
+
+        Returns:
+            Response: Success or error message based on logout result.
+        """
+        refresh_token = request.COOKIES.get('refresh_token')
+        if refresh_token is None:  
+            return Response({"detail": "Refresh token missing."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            token = UntypedToken(refresh_token)  # validates token.
-        except (InvalidToken, TokenError):  # catches invalid token.
-            return Response({'detail': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+            token = UntypedToken(refresh_token)
+        except (InvalidToken, TokenError): 
+            return Response({'detail': 'Invalid refresh token'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # blacklist the refresh token
+        # Blacklist the refresh token if it exists
         outstanding_token = OutstandingToken.objects.filter(user_id=token['user_id'], token=refresh_token).first()
         if outstanding_token:
-            BlacklistedToken.objects.get_or_create(token=outstanding_token)  # blacklists it.
+            BlacklistedToken.objects.get_or_create(token=outstanding_token)
 
-        response = Response({'detail': 'Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid.'})  # success response.
-        response.delete_cookie('access_token')  # deletes access token cookie.
-        response.delete_cookie('refresh_token')  # deletes refresh token cookie.
-        return response  # returns response.
+        response = Response({'detail': 'Log-Out successfully! All Tokens will be deleted. Refresh token is now invalid.'})
+        response.delete_cookie('access_token') 
+        response.delete_cookie('refresh_token') 
+        return response
 
-class TokenRefreshViewCustom(TokenRefreshView):  # defines custom refresh view.
-    
-    def post(self, request):  # handles post request.
-        refresh_token = request.COOKIES.get('refresh_token')  # gets refresh token from cookie.
-        if not refresh_token:  # checks if missing.
-            return Response({"detail": "Refresh token missing."}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+class TokenRefreshViewCustom(TokenRefreshView):
+    """Handle token refresh using refresh token from cookies."""
 
-        serializer = TokenRefreshSerializer(data={"refresh": refresh_token})  # initializes serializer with refresh.
+    def post(self, request):
+        """Generate a new access token from a refresh token.
+
+        Args:
+            request: The HTTP request object containing the refresh token cookie.
+
+        Returns:
+            Response: Success response with new access token or error details.
+        """
+        refresh_token = request.COOKIES.get('refresh_token')  
+        if not refresh_token: 
+            return Response({"detail": "Refresh token missing."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = TokenRefreshSerializer(data={"refresh": refresh_token})
 
         try:
-            serializer.is_valid(raise_exception=True)  # validates token, raises on error.
-        except (InvalidToken, TokenError):  # catches invalid or malformed token.
-            return Response({"detail": "Invalid refresh token."}, status=status.HTTP_401_UNAUTHORIZED)  # returns 401.
+            serializer.is_valid(raise_exception=True)
+        except (InvalidToken, TokenError):
+            return Response({"detail": "Invalid refresh token."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        access_token = serializer.validated_data['access']  # gets new access token.
+        access_token = serializer.validated_data['access']
 
-        response = Response({  # creates response.
-            "detail": "Token refreshed",  # detail message.
-            "access": access_token  # new access token.
+        response = Response({  
+            "detail": "Token refreshed",  
+            "access": access_token  
         })
-        response.set_cookie(  # sets new access token cookie.
+        # Set new access token in HTTP-only cookie
+        response.set_cookie(  
             key="access_token",
             value=access_token,
             httponly=True,
-            secure=False if settings.DEBUG else True,  # CHANGE: Conditional secure flag (False in dev/HTTP to allow cookie setting; was hardcoded True, causing issues in dev).
-            samesite="None"  # Remains the same (allows cross-site POST for refresh).
+            secure=False if settings.DEBUG else True, 
+            samesite="None" 
         )
-        return response  # returns response.
+        return response
         
-def send_reset_email_task(instance):  # top-level task for RQ.
-    uid = urlsafe_base64_encode(force_bytes(instance.pk))  # encodes user id.
-    token = PasswordResetTokenGenerator().make_token(instance)  # generates token.
+def send_reset_email_task(instance):
+    """Queue a password reset email task for a user.
+
+    Args:
+        instance: The User instance to send the reset email for.
+    """
+    uid = urlsafe_base64_encode(force_bytes(instance.pk))  
+    token = PasswordResetTokenGenerator().make_token(instance) 
     frontend_url = 'http://localhost:5500'
-    reset_link = f"{frontend_url}/pages/auth/confirm_password.html?uid={uid}&token={token}"  # uses frontend url.
+    reset_link = f"{frontend_url}/pages/auth/confirm_password.html?uid={uid}&token={token}"
     send_mail(
-        'Reset Your Password',  # subject.
-        f'Click here to reset your password: {reset_link}',  # body.
-        settings.DEFAULT_FROM_EMAIL,  # from email.
-        [instance.email],  # to email.
+        'Reset Your Password', 
+        f'Click here to reset your password: {reset_link}',
+        settings.DEFAULT_FROM_EMAIL, 
+        [instance.email],
     )
     
-class PasswordResetView(APIView):  # defines password reset view.
-    def post(self, request):  # handles post request.
-        serializer = PasswordResetSerializer(data=request.data)  # initializes serializer.
-        if serializer.is_valid():  # checks validity.
-            email = serializer.validated_data['email']  # gets email.
+class PasswordResetView(APIView):
+    """Handle password reset requests by sending reset emails."""
+
+    def post(self, request):
+        """Process password reset requests and queue email tasks.
+
+        Args:
+            request: The HTTP request object containing the email.
+
+        Returns:
+            Response: Success message or error details.
+        """
+        serializer = PasswordResetSerializer(data=request.data) 
+        if serializer.is_valid():  
+            email = serializer.validated_data['email']
             try:
-                user = User.objects.get(email=email)  # finds user if exists.
+                user = User.objects.get(email=email)  
             except User.DoesNotExist:
-                user = None  # no user, but still "send" email per doc.
+                user = None  
 
-            # always "send" email, even if no user (queue task or simulate)
+            # Always simulate sending email, even for non-existent users
             if user:
-                if getattr(settings, 'TESTING', False):  # sync in tests.
-                    send_reset_email_task(user)  # runs directly.
+                if getattr(settings, 'TESTING', False): 
+                    send_reset_email_task(user)
                 else:
-                    django_rq.enqueue(send_reset_email_task, user)  # queues with RQ.
+                    django_rq.enqueue(send_reset_email_task, user)
             else:
-                # for non-existent, simulate send (queue dummy or empty task, but since doc says "always send", send to the email anyway)
+                # Simulate email for non-existent users to prevent enumeration
                 if getattr(settings, 'TESTING', False):
-                    send_mail('Reset Your Password', 'If an account exists, a reset link has been sent.', settings.DEFAULT_FROM_EMAIL, [email])
+                    send_mail('Reset Your Password', 'If an account exists, a reset link has been sent.', 
+                    settings.DEFAULT_FROM_EMAIL, [email])
                 else:
-                    django_rq.enqueue(send_mail, 'Reset Your Password', 'If an account exists, a reset link has been sent.', settings.DEFAULT_FROM_EMAIL, [email])
+                    django_rq.enqueue(send_mail, 'Reset Your Password', 'If an account exists, a reset link has been sent.', 
+                    settings.DEFAULT_FROM_EMAIL, [email])
 
-            return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)  # returns 200.
+            return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid email.
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-class PasswordConfirmView(APIView):  # defines password confirm view.
-    authentication_classes = []  # disables auth for public endpoint.
-    permission_classes = [AllowAny]  # allows anyone.
-    def post(self, request, uidb64, token):  # handles post request with params.
-        serializer = PasswordConfirmSerializer(data=request.data)  # initializes serializer.
-        if not serializer.is_valid():  # checks validity.
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for mismatch/invalid.
+class PasswordConfirmView(APIView):
+    """Handle password reset confirmation with new password."""
+    authentication_classes = []
+    permission_classes = [AllowAny] 
 
-        try:  # tries to decode uid.
-            uid = force_str(urlsafe_base64_decode(uidb64))  # decodes uidb64 to id.
-            user = User.objects.get(pk=uid)  # gets user by id.
-        except (TypeError, ValueError, OverflowError, User.DoesNotExist):  # catches invalid uid.
-            return Response({'detail': 'Invalid reset link'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400.
+    def post(self, request, uidb64, token): 
+        """Set a new password using a reset token.
 
-        if PasswordResetTokenGenerator().check_token(user, token):  # checks if token is valid.
-            user.set_password(serializer.validated_data['new_password'])  # sets new password.
-            user.save()  # saves user.
-            return Response({'detail': 'Your Password has been successfully reset.'}, status=status.HTTP_200_OK)  # returns 200.
-        return Response({'detail': 'Invalid reset link'}, status=status.HTTP_400_BAD_REQUEST)  # returns 400 for invalid token.
+        Args:
+            request: The HTTP request object containing new password data.
+            uidb64 (str): Base64-encoded user ID.
+            token (str): Password reset token.
+
+        Returns:
+            Response: Success or error message based on reset result.
+        """
+        serializer = PasswordConfirmSerializer(data=request.data) 
+        if not serializer.is_valid():  
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST) 
+
+        try:  
+            uid = force_str(urlsafe_base64_decode(uidb64))  
+            user = User.objects.get(pk=uid) 
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):  
+            return Response({'detail': 'Invalid reset link'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if PasswordResetTokenGenerator().check_token(user, token):  
+            user.set_password(serializer.validated_data['new_password'])  
+            user.save() 
+            return Response({'detail': 'Your Password has been successfully reset.'}, status=status.HTTP_200_OK) 
+        return Response({'detail': 'Invalid reset link'}, status=status.HTTP_400_BAD_REQUEST)

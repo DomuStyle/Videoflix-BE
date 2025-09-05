@@ -5,9 +5,9 @@ functionality, leveraging Django's User model and Simple JWT for token-based
 authentication.
 """
 
-from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
