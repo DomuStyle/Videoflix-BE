@@ -233,7 +233,7 @@ SIMPLE_JWT = {
 
 DEFAULT_FROM_EMAIL = 'noreply@videoflix.com'
 
-# Always use SMTP for real email sending in dev and prod. For pure testing, temporarily switch to console backend.
+# Always use SMTP for real email sending in dev and prod.
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.getenv('EMAIL_HOST')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))

@@ -47,6 +47,7 @@ class RegistrationView(APIView):
             }, status=status.HTTP_201_CREATED)  
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 class ActivationView(APIView):
     """Handle account activation via emailed token."""
 
@@ -72,6 +73,7 @@ class ActivationView(APIView):
             user.save()
             return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)  
         return Response({'message': 'Activation failed'}, status=status.HTTP_400_BAD_REQUEST) 
+
 
 class CookieTokenObtainPairView(APIView):
     """Handle user login with cookie-based JWT tokens."""
@@ -118,6 +120,7 @@ class CookieTokenObtainPairView(APIView):
         )
         return response
 
+
 class LogoutView(APIView):
     """Handle user logout by blacklisting refresh tokens."""
 
@@ -148,6 +151,7 @@ class LogoutView(APIView):
         response.delete_cookie('access_token') 
         response.delete_cookie('refresh_token') 
         return response
+
 
 class TokenRefreshViewCustom(TokenRefreshView):
     """Handle token refresh using refresh token from cookies."""
@@ -187,7 +191,8 @@ class TokenRefreshViewCustom(TokenRefreshView):
             samesite="None"  
         )
         return response
-        
+
+
 def send_reset_email_task(instance):
     """Queue a password reset email task for a user.
 
@@ -204,7 +209,8 @@ def send_reset_email_task(instance):
         settings.DEFAULT_FROM_EMAIL, 
         [instance.email],
     )
-    
+
+
 class PasswordResetView(APIView):
     """Handle password reset requests by sending reset emails."""
 
@@ -243,6 +249,7 @@ class PasswordResetView(APIView):
             return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 class PasswordConfirmView(APIView):
     """Handle password reset confirmation with new password."""
