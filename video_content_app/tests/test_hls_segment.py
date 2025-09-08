@@ -1,53 +1,66 @@
-from rest_framework.test import APITestCase  # imports apitestcase for api testing.
-from video_content_app.models import Video  # imports video model.
-from django.contrib.auth.models import User  # imports user for jwt.
-from rest_framework_simplejwt.tokens import RefreshToken  # imports refresh token for auth.
-from django.conf import settings  # imports settings for media root.
-import os  # imports os for file paths.
+"""Unit tests for the HLS segment API endpoint.
 
-class HLSSegmentTestCase(APITestCase):  # defines test case class.
-    def setUp(self):  # sets up test data.
-        self.user = User.objects.create_user(username='test@example.com', password='testpass123')  # creates user for jwt.
-        self.token = str(RefreshToken.for_user(self.user).access_token)  # generates access token.
-        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')  # sets jwt header.
+This module contains test cases to verify the behavior of the HLS segment view,
+including successful segment retrieval, unauthenticated access, and not found scenarios.
+"""
 
-        self.video = Video.objects.create(  # creates video.
-            title='Test Video',  # title.
-            description='Test desc',  # description.
-            thumbnail='thumbnails/test.jpg',  # thumbnail.
-            category='Drama',  # category.
-            original_file='videos/original/test.mp4'  # original file.
+from django.conf import settings
+from video_content_app.models import Video
+from django.contrib.auth.models import User
+from rest_framework.test import APITestCase
+from rest_framework_simplejwt.tokens import RefreshToken
+import os
+
+
+class HLSSegmentTestCase(APITestCase):
+    """Test case for the HLS segment endpoint."""
+    
+    def setUp(self):
+        """Set up test data with a user, JWT token, video, and mock HLS segment file."""
+        self.user = User.objects.create_user(username='test@example.com', password='testpass123')
+        self.token = str(RefreshToken.for_user(self.user).access_token)  # Generate JWT access token
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {self.token}')  # Set JWT header for authentication
+
+        self.video = Video.objects.create(
+            title='Test Video',
+            description='Test desc',
+            thumbnail='thumbnails/test.jpg',
+            category='Drama',
+            original_file='videos/original/test.mp4'
         )
-        self.resolution = '480p'  # test resolution.
-        self.segment = '000.ts'  # test segment name.
-        self.segment_path = os.path.join(settings.MEDIA_ROOT, f'videos/{self.video.id}/{self.resolution}/{self.segment}')  # assumed path.
-        os.makedirs(os.path.dirname(self.segment_path), exist_ok=True)  # creates directory.
-        with open(self.segment_path, 'wb') as f:  # creates mock .ts file (binary).
-            f.write(b'\x00\x01\x02')  # mock binary content.
+        self.resolution = '480p'
+        self.segment = '000.ts'
+        self.segment_path = os.path.join(settings.MEDIA_ROOT, f'videos/{self.video.id}/{self.resolution}/{self.segment}')
+        os.makedirs(os.path.dirname(self.segment_path), exist_ok=True)  # Create directory for mock segment
+        with open(self.segment_path, 'wb') as f:
+            f.write(b'\x00\x01\x02')  # Write mock binary segment content
 
-    def test_hls_segment_success(self):  # tests successful segment.
-        url = f'/api/video/{self.video.id}/{self.resolution}/{self.segment}/'  # builds url.
-        response = self.client.get(url)  # sends get request.
-        self.assertEqual(response.status_code, 200)  # checks 200 status.
-        self.assertEqual(response['Content-Type'], 'video/MP2T')  # checks content type.
-        content = b''.join(response.streaming_content)  # consumes streaming_content as bytes.
-        self.assertEqual(content, b'\x00\x01\x02')  # checks mock binary content.
+    def test_hls_segment_success(self):
+        """Test successful retrieval of an HLS segment with valid authentication."""
+        url = f'/api/video/{self.video.id}/{self.resolution}/{self.segment}/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'video/MP2T')  # Verify correct content type
+        content = b''.join(response.streaming_content)  # Aggregate streaming response
+        self.assertEqual(content, b'\x00\x01\x02')  # Verify segment content matches mock data
 
-    def test_hls_segment_unauthenticated(self):  # tests unauthenticated.
-        self.client.credentials()  # clears jwt header.
-        url = f'/api/video/{self.video.id}/{self.resolution}/{self.segment}/'  # builds url.
-        response = self.client.get(url)  # sends get request.
-        self.assertEqual(response.status_code, 401)  # checks 401 status.
+    def test_hls_segment_unauthenticated(self):
+        """Test HLS segment access without authentication."""
+        self.client.credentials()  # Clear JWT header
+        url = f'/api/video/{self.video.id}/{self.resolution}/{self.segment}/'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 401)
 
-    def test_hls_segment_not_found(self):  # tests not found.
-        url = f'/api/video/9999/{self.resolution}/{self.segment}/'  # non-existent id.
-        response = self.client.get(url)  # sends get request.
-        self.assertEqual(response.status_code, 404)  # checks 404 status.
+    def test_hls_segment_not_found(self):
+        """Test HLS segment access for non-existent video, resolution, or segment."""
+        url = f'/api/video/9999/{self.resolution}/{self.segment}/'  # Non-existent video ID
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
 
-        url = f'/api/video/{self.video.id}/invalid/{self.segment}/'  # invalid resolution.
-        response = self.client.get(url)  # sends get request.
-        self.assertEqual(response.status_code, 404)  # checks 404 status.
+        url = f'/api/video/{self.video.id}/invalid/{self.segment}/'  # Invalid resolution
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
 
-        url = f'/api/video/{self.video.id}/{self.resolution}/invalid.ts/'  # invalid segment.
-        response = self.client.get(url)  # sends get request.
-        self.assertEqual(response.status_code, 404)  # checks 404 status.
+        url = f'/api/video/{self.video.id}/{self.resolution}/invalid.ts/'  # Invalid segment
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 404)
