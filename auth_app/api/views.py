@@ -105,14 +105,16 @@ class CookieTokenObtainPairView(APIView):
             value=serializer.validated_data['access'],
             httponly=True,
             secure=False if settings.DEBUG else True,
-            samesite="None" 
+            samesite="None",
+            # path='/' 
         )
         response.set_cookie(
             key="refresh_token",
             value=serializer.validated_data['refresh'],
             httponly=True,
             secure=False if settings.DEBUG else True,
-            samesite="None" 
+            samesite="None",
+            #path='/'  
         )
         return response
 
@@ -182,7 +184,7 @@ class TokenRefreshViewCustom(TokenRefreshView):
             value=access_token,
             httponly=True,
             secure=False if settings.DEBUG else True, 
-            samesite="None" 
+            samesite="None"  
         )
         return response
         

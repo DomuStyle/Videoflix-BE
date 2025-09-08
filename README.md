@@ -120,3 +120,9 @@ For example by using Postman.
 Use http://127.0.0.1:8000/admin/ to enter the admin panel of the Backend by using the Superuser credentials set in your .env file.
 
 ---
+
+## Troubleshootig 
+
+*If your Backend isn't running properly in Docker-Desktop*
+
+- after cloning the repo from Github the file #backend.entrypoint.sh uses the Line-Ending fromat CRLF. This must be set to LF instead.
