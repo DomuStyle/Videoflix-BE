@@ -1,30 +1,41 @@
-from django.db.models.signals import post_save  # imports post_save signal.
-from django.dispatch import receiver  # imports receiver decorator.
-from .models import Video  # imports video model.
-import django_rq  # imports django_rq for queuing.
-import os  # imports os for paths.
-import subprocess  # imports subprocess for ffmpeg calls.
-from django.conf import settings  # imports settings for MEDIA_ROOT.
+"""Signal handlers for the video content application.
+
+This module defines signals to transcode newly created videos into HLS format,
+using FFmpeg and RQ for asynchronous processing.
+"""
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from .models import Video
+from django.conf import settings
+import django_rq
+import os
+import subprocess
 
 
-def transcode_task(instance):  # top-level task function.
-    input_path = instance.original_file.path  # gets input path.
-    if not os.path.exists(input_path):  # checks if file exists.
-        print("Error: Input file not found at", input_path)  # debug missing file.
+def transcode_task(instance):
+    """Transcode a video into HLS format for multiple resolutions.
+
+    Args:
+        instance: The Video instance to transcode.
+    """
+    input_path = instance.original_file.path
+    if not os.path.exists(input_path):
+        print(f"Error: Input file not found at {input_path}")
         return
-    print("Transcoding started for", input_path)  # debug start.
-    base_dir = os.path.join(settings.MEDIA_ROOT, f'videos/{instance.id}')  # base dir for video ID (fix: /media/videos/id/).
-    os.makedirs(base_dir, exist_ok=True)  # creates base dir.
-    master_playlist = os.path.join(base_dir, 'master.m3u8')  # master playlist path.
-    streams = []  # list for stream variants.
+    print(f"Transcoding started for {input_path}")
+    base_dir = os.path.join(settings.MEDIA_ROOT, f'videos/{instance.id}')
+    os.makedirs(base_dir, exist_ok=True)
+    master_playlist = os.path.join(base_dir, 'master.m3u8')
+    streams = []
 
-    for res in ['480p', '720p', '1080p']:  # resolutions.
-        output_dir = os.path.join(base_dir, res)  # output dir.
-        os.makedirs(output_dir, exist_ok=True)  # creates dir.
-        segment_path = os.path.join(output_dir, '%03d.ts')  # segment pattern.
-        playlist_path = os.path.join(output_dir, 'index.m3u8')  # per-resolution playlist (changed to 'index.m3u8' to match view/frontend).
+    for res in ['480p', '720p', '1080p']:
+        output_dir = os.path.join(base_dir, res)
+        os.makedirs(output_dir, exist_ok=True)
+        segment_path = os.path.join(output_dir, '%03d.ts')
+        playlist_path = os.path.join(output_dir, 'index.m3u8')
 
-        print("Transcoding to", res, "at", playlist_path)  # debug per resolution.
+        print(f"Transcoding to {res} at {playlist_path}")
         try:
             cmd = [
                 'ffmpeg',
@@ -35,22 +46,37 @@ def transcode_task(instance):  # top-level task function.
                 '-hls_segment_filename', segment_path,
                 '-b:v', '1000k' if res == '480p' else '2000k' if res == '720p' else '4000k',
                 '-s', '854x480' if res == '480p' else '1280x720' if res == '720p' else '1920x1080',
-                '-y',  # overwrite output.
+                '-y',  # Overwrite output files
                 playlist_path
             ]
-            subprocess.call(cmd)  # runs ffmpeg binary.
-            print("Transcoding complete for", res)  # debug success.
-            streams.append(f'#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480\n{res}/index.m3u8' if res == '480p' else f'#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720\n{res}/index.m3u8' if res == '720p' else f'#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080\n{res}/index.m3u8')  # adds stream to master (changed to 'index.m3u8').
+            subprocess.call(cmd)
+            print(f"Transcoding complete for {res}")
+            streams.append(
+                f'#EXT-X-STREAM-INF:BANDWIDTH=1000000,RESOLUTION=854x480\n{res}/index.m3u8'
+                if res == '480p' else
+                f'#EXT-X-STREAM-INF:BANDWIDTH=2000000,RESOLUTION=1280x720\n{res}/index.m3u8'
+                if res == '720p' else
+                f'#EXT-X-STREAM-INF:BANDWIDTH=4000000,RESOLUTION=1920x1080\n{res}/index.m3u8'
+            )
         except Exception as e:
-            print("FFmpeg subprocess error for", res, ":", str(e))  # debug failure.
+            print(f"FFmpeg subprocess error for {res}: {str(e)}")
 
-    with open(master_playlist, 'w') as f:  # writes master m3u8.
-        f.write('#EXTM3U\n#EXT-X-VERSION:3\n' + '\n'.join(streams))  # adds header and streams.
-    print("Master playlist created at", master_playlist)  # debug master.
+    with open(master_playlist, 'w') as f:
+        f.write('#EXTM3U\n#EXT-X-VERSION:3\n' + '\n'.join(streams))
+    print(f"Master playlist created at {master_playlist}")
 
-@receiver(post_save, sender=Video)  # receiver for post_save on video.
-def transcode_video(sender, instance, created, **kwargs):  # signal handler.
-    if created:  # if new video.
-        print("Signal fired for video ID:", instance.id)  # debug: signal trigger.
-        django_rq.enqueue(transcode_task, instance)  # enqueues with instance arg (fix for RQ).
-        print("Task enqueued for video ID:", instance.id)  # debug enqueue.
+
+@receiver(post_save, sender=Video)
+def transcode_video(sender, instance, created, **kwargs):
+    """Handle post-save signal for Video model to queue transcoding task.
+
+    Args:
+        sender: The model class that sent the signal (Video).
+        instance: The Video instance being saved.
+        created (bool): True if the instance was newly created.
+        **kwargs: Additional signal arguments.
+    """
+    if created:
+        print(f"Signal fired for video ID: {instance.id}")
+        django_rq.enqueue(transcode_task, instance)  # Queue transcoding task
+        print(f"Task enqueued for video ID: {instance.id}")
