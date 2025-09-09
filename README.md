@@ -94,7 +94,16 @@ Or by creating a new file with the following content. The default values are gen
  
 - Tipp: Visit https://temp-mail.org/en/ to create, easy to use Temporary EMail's.
 
-## Step 5 *Build and Start Docker Containers:*
+
+## Step 5 *Install Docker-Desktop* (if needed)
+If you not already have Docker-Desktop installed on your System, you can download it here:
+    
+    https://www.docker.com/products/docker-desktop/
+
+- Note: Restart your system after installing the Software!
+
+
+## Step 6 *Build and Start Docker Containers:*
 This commands builds the images, starts all services (web API, database, Redis, RQ worker), and runs the database migrations.
 
 for Mac user
@@ -112,12 +121,14 @@ after that run the command
 - Note: You can add -d to run the containers in the background.
 
 
-## Step 6 *The Project is now ready to go!*
+## Step 7 *The Project is now ready to go!*
 
 You can access the application now in your Browser at http://127.0.0.1:8000.
 For example by using Postman.
 
-Use http://127.0.0.1:8000/admin/ to enter the admin panel of the Backend by using the Superuser credentials set in your .env file.
+Use http://127.0.0.1:8000/admin/ to enter the Admin-Panel of the Backend by using the Superuser credentials set in your .env file.
+
+- Note: You can add Video's and Thumbnails via Admin-Panel
 
 ---
 
@@ -126,3 +137,5 @@ Use http://127.0.0.1:8000/admin/ to enter the admin panel of the Backend by usin
 *If your Backend isn't running properly in Docker-Desktop*
 
 - after cloning the repo from Github the file #backend.entrypoint.sh uses the Line-Ending fromat CRLF. This must be set to LF instead.
+
+---
